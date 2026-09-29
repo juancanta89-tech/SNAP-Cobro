@@ -57,6 +57,9 @@ class XuiReadOnlyClient {
  }
  private fun findAnyExpiry(s:String):String?{
   val decoded=s.replace("&quot;","\"").replace("&#039;","'").replace("&nbsp;"," ")
+  // XUI may populate Expiration Date from inline JavaScript with .val(...).
+  val jsExpiry=Regex("""(?is)(?:expiration(?:_date)?|exp_date|expires?)[^\n\r]{0,240}?\.val\(\s*["\'](20\d{2}[-/]\d{1,2}[-/]\d{1,2}(?:[ T]\d{1,2}:\d{2}(?::\d{2})?))["\']\s*\)""").find(decoded)?.groupValues?.getOrNull(1)
+  if(jsExpiry!=null) return normalize(jsExpiry)
   val patterns=listOf(
    Regex("""(?is)(?:expiration(?:[_\s-]*date)?|expires?|exp[_\s-]*date)[\s\S]{0,800}?(20\d{2}[-/]\d{1,2}[-/]\d{1,2}(?:[ T]\d{1,2}:\d{2}(?::\d{2})?)?)"""),
    Regex("""(?is)(?:name|id)\s*=\s*["'][^"']*(?:exp|expiration)[^"']*["'][^>]*value\s*=\s*["'](20\d{2}[-/]\d{1,2}[-/]\d{1,2}(?:[ T]\d{1,2}:\d{2}(?::\d{2})?)?)["']"""),
