@@ -35,7 +35,7 @@ class XuiReadOnlyClient {
     val links=extractLinksNearUser(r.text,target)
     for(link in links.take(12)){
      val detail=get(resolve(url,link))
-     if(detail.code in 200..399 && detail.text.contains(target,true)){
+     if(detail.code in 200..399){
       val d=findExpiryNearUser(detail.text,target)?:findAnyExpiry(detail.text)
       if(d!=null){
        return XuiProbeResult(true,"CONEXIÓN XUI OK • SOLO LECTURA\nUsuario encontrado: "+target+"\nVencimiento actual: "+d+"\nExtensión detectada: +"+months+(if(months==1)" mes" else " meses")+"\nNueva fecha propuesta: "+addMonths(d,months)+"\n\nVERIFICACIÓN PENDIENTE • No se realizó ningún cambio.")
@@ -56,7 +56,8 @@ class XuiReadOnlyClient {
  private fun findAnyExpiry(s:String):String?{
   val decoded=s.replace("&quot;","\"").replace("&#039;","'").replace("&nbsp;"," ")
   val patterns=listOf(
-   Regex("""(?is)(?:expiration(?:[_\s-]*date)?|expires?|exp[_\s-]*date)[^0-9]{0,180}(20\d{2}[-/]\d{1,2}[-/]\d{1,2}(?:[ T]\d{1,2}:\d{2}(?::\d{2})?)?)"""),
+   Regex("""(?is)(?:expiration(?:[_\s-]*date)?|expires?|exp[_\s-]*date)[\s\S]{0,800}?(20\d{2}[-/]\d{1,2}[-/]\d{1,2}(?:[ T]\d{1,2}:\d{2}(?::\d{2})?)?)"""),
+   Regex("""(?is)(?:name|id)\s*=\s*["'][^"']*(?:exp|expiration)[^"']*["'][^>]*value\s*=\s*["'](20\d{2}[-/]\d{1,2}[-/]\d{1,2}(?:[ T]\d{1,2}:\d{2}(?::\d{2})?)?)["']"""),
    Regex("""(?is)(?:expiration(?:[_\s-]*date)?|expires?|exp[_\s-]*date)[^0-9]{0,180}(\d{1,2}[-/]\d{1,2}[-/]20\d{2}(?:[ T]\d{1,2}:\d{2}(?::\d{2})?)?)""")
   )
   for(p in patterns){p.find(decoded)?.groupValues?.getOrNull(1)?.let{return normalize(it)}}
@@ -73,7 +74,11 @@ class XuiReadOnlyClient {
  private fun extractLinksNearUser(html:String,user:String):List<String>{
   val i=html.indexOf(user,ignoreCase=true);if(i<0)return emptyList()
   val chunk=html.substring((i-5000).coerceAtLeast(0),(i+8000).coerceAtMost(html.length))
-  return Regex("""(?is)href\s*=\s*["']([^"'#]+)["']""").findAll(chunk).map{it.groupValues[1].replace("&amp;","&")}.filter{it.contains("line",true)||it.contains("edit",true)}.distinct().toList()
+  val urls=mutableListOf<String>()
+  Regex("""(?is)href\s*=\s*["']([^"'#]+)["']""").findAll(chunk).forEach{urls+=it.groupValues[1]}
+  Regex("""(?is)(?:data-url|data-href|url)\s*=\s*["']([^"']+)["']""").findAll(chunk).forEach{urls+=it.groupValues[1]}
+  Regex("""(?is)(?:window\.location|location\.href)\s*=\s*["']([^"']+)["']""").findAll(chunk).forEach{urls+=it.groupValues[1]}
+  return urls.map{it.replace("&amp;","&")}.filter{it.contains("line",true)||it.contains("edit",true)}.distinct()
  }
  private fun resolve(base:String,link:String)=URL(URL(base),link).toString()
  private data class R(val code:Int,val text:String)
