@@ -65,6 +65,24 @@ class XuiReadOnlyClient {
   for(p in patterns){p.find(decoded)?.groupValues?.getOrNull(1)?.let{return normalize(it)}}
   return null
  }
+ private fun safeAjaxDiagnostic(html:String,base:String):String{
+  val d=html.replace("&quot;","\"").replace("&#039;","'").replace("&amp;","&").replace("\\/","/")
+  val found=linkedSetOf<String>()
+  val patterns=listOf(
+   Regex("""(?is)(?:url|ajax|endpoint)\s*[:=]\s*["']([^"']+)["']"""),
+   Regex("""(?is)(?:fetch|axios\.get|\$\.get|\$\.ajax)\s*\(\s*["']([^"']+)["']"""),
+   Regex("""(?is)<script[^>]+src\s*=\s*["']([^"']+)["']""")
+  )
+  for(p in patterns) p.findAll(d).forEach{m->
+   val v=m.groupValues[1].trim()
+   if(v.isNotBlank() && !v.startsWith("data:") && !v.contains("password",true) && !v.contains("token",true)) found+=v
+  }
+  val interesting=found.filter{v->
+   v.contains("line",true)||v.contains("api",true)||v.contains("ajax",true)||v.contains("user",true)||v.contains("client",true)
+  }.take(12)
+  return if(interesting.isEmpty()) "sin endpoints AJAX visibles en HTML; scripts="+found.filter{it.endsWith(".js",true)}.take(8).joinToString(" | ")
+  else interesting.joinToString(" | ")
+ }
  private fun safeExpirationDiagnostic(s:String):String{
   val d=s.replace("&quot;","\"").replace("&#039;","'").replace("&nbsp;"," ").replace("\r"," ").replace("\n"," ")
   val keys=listOf("expiration_date","expiration","exp_date","expires","expire")
@@ -145,7 +163,7 @@ class XuiReadOnlyClient {
   if(r.code !in 200..399) return XuiProbeResult(true,"CONEXIÓN XUI OK • SOLO LECTURA\nUsuario encontrado: "+target+"\nPrueba directa de ficha: HTTP "+r.code+"\nNo se realizó ningún cambio.")
   val expiry=findAnyExpiry(r.text) ?: findExpiryEncoded(r.text)
   return if(expiry!=null) XuiProbeResult(true,"CONEXIÓN XUI OK • SOLO LECTURA\nUsuario encontrado: "+target+"\nVencimiento actual: "+expiry+"\nExtensión detectada: +"+months+(if(months==1)" mes" else " meses")+"\nNueva fecha propuesta: "+addMonths(expiry,months)+"\n\nPRUEBA CONTROLADA • No se realizó ningún cambio.")
-  else XuiProbeResult(true,"CONEXIÓN XUI OK • SOLO LECTURA\nUsuario encontrado: "+target+"\nDIAGNÓSTICO EXPIRATION: "+safeExpirationDiagnostic(r.text)+"\nNo se realizó ningún cambio.")
+  else XuiProbeResult(true,"CONEXIÓN XUI OK • SOLO LECTURA\nUsuario encontrado: "+target+"\nDIAGNÓSTICO AJAX/JS: "+safeAjaxDiagnostic(r.text,base)+"\nNo se realizó ningún cambio.")
  }
  private fun probeReadOnlyDataRoutes(base:String,target:String,months:Int):String{
   val q=enc(target)
