@@ -65,6 +65,30 @@ class XuiReadOnlyClient {
   for(p in patterns){p.find(decoded)?.groupValues?.getOrNull(1)?.let{return normalize(it)}}
   return null
  }
+ private fun findExpiryEncoded(s:String):String?{
+  val d=s.replace("&quot;","\"").replace("&#039;","'").replace("&nbsp;"," ").replace("\\/","/")
+  val keys=listOf("expiration_date","expiration","exp_date","expires","exp")
+  for(key in keys){
+   var from=0
+   while(true){
+    val i=d.indexOf(key,from,ignoreCase=true); if(i<0)break
+    val a=(i-250).coerceAtLeast(0); val b=(i+1600).coerceAtMost(d.length); val block=d.substring(a,b)
+    Regex("""20\d{2}[-/]\d{1,2}[-/]\d{1,2}(?:[ T]\d{1,2}:\d{2}(?::\d{2})?)?""").find(block)?.value?.let{return normalize(it)}
+    Regex("""(?is)value\s*=\s*["'](\d{9,13})["']""").find(block)?.groupValues?.getOrNull(1)?.let{raw->
+     val n=raw.toLongOrNull()
+     if(n!=null){
+      val sec=if(n>100000000000L)n/1000 else n
+      if(sec in 1000000000L..4102444800L) try{return Instant.ofEpochSecond(sec).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))}catch(_:Exception){}
+     }
+    }
+    Regex("""(?is)(?:value|data-date|data-value)\s*=\s*["']([^"']{4,40})["']""").find(block)?.groupValues?.getOrNull(1)?.let{v->
+     Regex("""20\d{2}[-/]\d{1,2}[-/]\d{1,2}(?:[ T]\d{1,2}:\d{2}(?::\d{2})?)?""").find(v)?.value?.let{return normalize(it)}
+    }
+    from=i+key.length
+   }
+  }
+  return null
+ }
  private fun normalize(v:String)=v.trim().replace('/','-')
  private fun addMonths(v:String,months:Int):String{
   val parts=v.split(Regex("""\s+"""),limit=2); val d=parts[0].split("-")
@@ -104,7 +128,7 @@ class XuiReadOnlyClient {
   if(!target.equals("Dajanna1990",true)) return null
   val r=get(base.trimEnd('/')+"/line?id=645998")
   if(r.code !in 200..399) return XuiProbeResult(true,"CONEXIÓN XUI OK • SOLO LECTURA\nUsuario encontrado: "+target+"\nPrueba directa de ficha: HTTP "+r.code+"\nNo se realizó ningún cambio.")
-  val expiry=findAnyExpiry(r.text)
+  val expiry=findAnyExpiry(r.text) ?: findExpiryEncoded(r.text)
   return if(expiry!=null) XuiProbeResult(true,"CONEXIÓN XUI OK • SOLO LECTURA\nUsuario encontrado: "+target+"\nVencimiento actual: "+expiry+"\nExtensión detectada: +"+months+(if(months==1)" mes" else " meses")+"\nNueva fecha propuesta: "+addMonths(expiry,months)+"\n\nPRUEBA CONTROLADA • No se realizó ningún cambio.")
   else XuiProbeResult(true,"CONEXIÓN XUI OK • SOLO LECTURA\nUsuario encontrado: "+target+"\nLa ficha /line?id=645998 abrió correctamente, pero el campo de vencimiento requiere otro formato de extracción.\nNo se realizó ningún cambio.")
  }
