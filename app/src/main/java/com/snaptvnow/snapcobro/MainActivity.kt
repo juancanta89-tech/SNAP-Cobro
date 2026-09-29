@@ -31,7 +31,7 @@ class MainActivity:AppCompatActivity(){
    else {val ok=store.saveIfNew(raw,p);Toast.makeText(this,if(ok)"Pago de prueba detectado" else "Pago duplicado ignorado",Toast.LENGTH_LONG).show();refresh()}
   }
   findViewById<Button>(R.id.saveXuiConfig).setOnClickListener{xuiConfig.save(xuiUrl.text.toString(),xuiUser.text.toString(),xuiPassword.text.toString());xuiPassword.setText("");xuiStatus.text="Configuración guardada localmente. Lista para prueba de solo lectura.";Toast.makeText(this,"Configuración XUI guardada en este teléfono",Toast.LENGTH_LONG).show()}
-  findViewById<Button>(R.id.searchXuiButton).setOnClickListener{val p=current?.payment;if(p==null){xuiStatus.text="No hay un pago pendiente para buscar."}else if(!xuiConfig.configured()){xuiStatus.text="Primero guarda URL, usuario y contraseña del panel."}else{xuiStatus.text="Conectando a XUI en modo SOLO LECTURA…";Thread{val r=XuiReadOnlyClient().probe(xuiConfig.url(),xuiConfig.user(),xuiConfig.password(),p.xuiUser);runOnUiThread{xuiStatus.text=r.message;Toast.makeText(this,if(r.ok)"Lectura XUI completada" else "Revisa el resultado de conexión",Toast.LENGTH_LONG).show()}}.start()}}
+  findViewById<Button>(R.id.searchXuiButton).setOnClickListener{val p=current?.payment;if(p==null){xuiStatus.text="No hay un pago pendiente para buscar."}else if(!xuiConfig.configured()){xuiStatus.text="Primero guarda URL, usuario y contraseña del panel."}else{xuiStatus.text="Conectando a XUI en modo SOLO LECTURA…";Thread{val r=XuiReadOnlyClient().probe(xuiConfig.url(),xuiConfig.user(),xuiConfig.password(),p.xuiUser,p.months);runOnUiThread{xuiStatus.text=r.message;Toast.makeText(this,if(r.ok)"Lectura XUI completada" else "Revisa el resultado de conexión",Toast.LENGTH_LONG).show()}}.start()}}
   refresh()
  }
 
