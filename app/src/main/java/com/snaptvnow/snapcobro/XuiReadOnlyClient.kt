@@ -217,10 +217,10 @@ class XuiReadOnlyClient {
  }
  private fun safeUrl(v:String):String{ return try{ val u=URL(v); u.protocol+"://"+u.host+(if(u.port>0)":"+u.port else "")+u.path+(if(u.query.isNullOrBlank())"" else "?"+u.query) }catch(_:Exception){v.take(180)} }
  private fun panelUrl(base:String,relative:String):String{
-  val b=base.trimEnd('/')+"/"
-  return URL(URL(b),relative.trimStart('/')).toString()
+  val b=base.trimEnd('/')
+  return b+"/"+relative.trimStart('/')
  }
- private fun resolve(base:String,link:String)=URL(URL(base),link).toString()
+  private fun resolve(base:String,link:String)=URL(URL(base),link).toString()
  private data class R(val code:Int,val text:String,val finalUrl:String)
  private fun get(url:String):R{val c=URL(url).openConnection() as HttpURLConnection;c.requestMethod="GET";c.instanceFollowRedirects=true;c.connectTimeout=12000;c.readTimeout=12000;addCookies(c,url);val code=c.responseCode;saveCookies(c,url);return R(code,read(c,code),c.url.toString())}
  // The only POST is authentication. No update/save/delete endpoint is implemented.
