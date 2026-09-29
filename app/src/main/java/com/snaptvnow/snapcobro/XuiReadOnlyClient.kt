@@ -165,7 +165,7 @@ class XuiReadOnlyClient {
  private fun probeKnownLine(base:String,target:String,months:Int):XuiProbeResult?{
   // Temporary controlled diagnostic for the current test account only; GET/read-only.
   if(!target.equals("Dajanna1990",true)) return null
-  val r=get(base.trimEnd('/')+"/line?id=645998")
+  val r=get(panelUrl(base,"line?id=645998"))
   if(r.code !in 200..399) return XuiProbeResult(true,"CONEXIÓN XUI OK • SOLO LECTURA\nUsuario encontrado: "+target+"\nPrueba directa de ficha: HTTP "+r.code+"\nNo se realizó ningún cambio.")
   val expiry=findAnyExpiry(r.text) ?: findExpiryEncoded(r.text) ?: findVisibleExpDateValue(r.text)
   return if(expiry!=null) XuiProbeResult(true,"CONEXIÓN XUI OK • SOLO LECTURA\nUsuario encontrado: "+target+"\nVencimiento actual: "+expiry+"\nExtensión detectada: +"+months+(if(months==1)" mes" else " meses")+"\nNueva fecha propuesta: "+addMonths(expiry,months)+"\n\nPRUEBA CONTROLADA • No se realizó ningún cambio.")
@@ -193,7 +193,7 @@ class XuiReadOnlyClient {
     val ids=extractIdsFromDataResponse(r.text,target)
     notes+=path.substringBefore('?')+":"+r.code+":USER:IDs="+ids.take(5).joinToString(",")
     for(id in ids.take(20)){
-     val detail=get(base.trimEnd('/')+"/line?id="+id)
+     val detail=get(panelUrl(base,"line?id="+id))
      if(detail.code in 200..399){
       val expiry=findAnyExpiry(detail.text)
       if(expiry!=null) return "FOUND id="+id+" | Vencimiento actual: "+expiry+" | Nueva fecha propuesta: "+addMonths(expiry,months)
@@ -214,6 +214,10 @@ class XuiReadOnlyClient {
    Regex("""(?is)(?:data-id|data-line-id)\s*=\s*["'](\d{2,})["']""")
   ).forEach{p->p.findAll(chunk).forEach{m->out+=m.groupValues[1]}}
   return out.distinct()
+ }
+ private fun panelUrl(base:String,relative:String):String{
+  val b=base.trimEnd('/')+"/"
+  return URL(URL(b),relative.trimStart('/')).toString()
  }
  private fun resolve(base:String,link:String)=URL(URL(base),link).toString()
  private data class R(val code:Int,val text:String)
