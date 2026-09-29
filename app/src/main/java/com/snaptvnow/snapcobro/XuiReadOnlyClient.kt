@@ -215,7 +215,8 @@ class XuiReadOnlyClient {
   ).forEach{p->p.findAll(chunk).forEach{m->out+=m.groupValues[1]}}
   return out.distinct()
  }
- private fun safeUrl(v:String):String{ return try{ val u=URL(v); u.protocol+"://"+u.host+(if(u.port>0)":"+u.port else "")+u.path+(if(u.query.isNullOrBlank())"" else "?"+u.query) }catch(_:Exception){v.take(180)} }\n private fun panelUrl(base:String,relative:String):String{
+ private fun safeUrl(v:String):String{ return try{ val u=URL(v); u.protocol+"://"+u.host+(if(u.port>0)":"+u.port else "")+u.path+(if(u.query.isNullOrBlank())"" else "?"+u.query) }catch(_:Exception){v.take(180)} }
+ private fun panelUrl(base:String,relative:String):String{
   val b=base.trimEnd('/')+"/"
   return URL(URL(b),relative.trimStart('/')).toString()
  }
