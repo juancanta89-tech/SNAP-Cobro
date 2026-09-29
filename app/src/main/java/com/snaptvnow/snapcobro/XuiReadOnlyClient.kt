@@ -65,6 +65,21 @@ class XuiReadOnlyClient {
   for(p in patterns){p.find(decoded)?.groupValues?.getOrNull(1)?.let{return normalize(it)}}
   return null
  }
+ private fun safeExpirationDiagnostic(s:String):String{
+  val d=s.replace("&quot;","\"").replace("&#039;","'").replace("&nbsp;"," ").replace("\r"," ").replace("\n"," ")
+  val keys=listOf("expiration_date","expiration","exp_date","expires","expire")
+  for(k in keys){
+   val i=d.indexOf(k,ignoreCase=true)
+   if(i>=0){
+    val a=(i-80).coerceAtLeast(0); val b=(i+500).coerceAtMost(d.length)
+    return d.substring(a,b)
+      .replace(Regex("""(?i)(password|passwd|token|cookie|authorization)\s*[=:]\s*["']?[^"'\s>]+"""),"$1=[REDACTED]")
+      .replace(Regex("""\s{2,}""")," ").take(560)
+   }
+  }
+  val dates=Regex("""(?:\b\d{9,13}\b|20\d{2}[-/]\d{1,2}[-/]\d{1,2}(?:[ T]\d{1,2}:\d{2}(?::\d{2})?)?)""").findAll(d).map{it.value}.distinct().take(8).toList()
+  return if(dates.isEmpty()) "sin etiqueta ni valores de fecha/timestamp detectables" else "valores candidatos="+dates.joinToString(",")
+ }
  private fun findExpiryEncoded(s:String):String?{
   val d=s.replace("&quot;","\"").replace("&#039;","'").replace("&nbsp;"," ").replace("\\/","/")
   val keys=listOf("expiration_date","expiration","exp_date","expires","exp")
@@ -130,7 +145,7 @@ class XuiReadOnlyClient {
   if(r.code !in 200..399) return XuiProbeResult(true,"CONEXIÓN XUI OK • SOLO LECTURA\nUsuario encontrado: "+target+"\nPrueba directa de ficha: HTTP "+r.code+"\nNo se realizó ningún cambio.")
   val expiry=findAnyExpiry(r.text) ?: findExpiryEncoded(r.text)
   return if(expiry!=null) XuiProbeResult(true,"CONEXIÓN XUI OK • SOLO LECTURA\nUsuario encontrado: "+target+"\nVencimiento actual: "+expiry+"\nExtensión detectada: +"+months+(if(months==1)" mes" else " meses")+"\nNueva fecha propuesta: "+addMonths(expiry,months)+"\n\nPRUEBA CONTROLADA • No se realizó ningún cambio.")
-  else XuiProbeResult(true,"CONEXIÓN XUI OK • SOLO LECTURA\nUsuario encontrado: "+target+"\nLa ficha /line?id=645998 abrió correctamente, pero el campo de vencimiento requiere otro formato de extracción.\nNo se realizó ningún cambio.")
+  else XuiProbeResult(true,"CONEXIÓN XUI OK • SOLO LECTURA\nUsuario encontrado: "+target+"\nDIAGNÓSTICO EXPIRATION: "+safeExpirationDiagnostic(r.text)+"\nNo se realizó ningún cambio.")
  }
  private fun probeReadOnlyDataRoutes(base:String,target:String,months:Int):String{
   val q=enc(target)
