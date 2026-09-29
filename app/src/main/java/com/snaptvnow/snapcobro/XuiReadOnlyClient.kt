@@ -167,9 +167,16 @@ class XuiReadOnlyClient {
   if(!target.equals("Dajanna1990",true)) return null
   val r=get(base.trimEnd('/')+"/line?id=645998")
   if(r.code !in 200..399) return XuiProbeResult(true,"CONEXIÓN XUI OK • SOLO LECTURA\nUsuario encontrado: "+target+"\nPrueba directa de ficha: HTTP "+r.code+"\nNo se realizó ningún cambio.")
-  val expiry=findAnyExpiry(r.text) ?: findExpiryEncoded(r.text)
+  val expiry=findAnyExpiry(r.text) ?: findExpiryEncoded(r.text) ?: findVisibleExpDateValue(r.text)
   return if(expiry!=null) XuiProbeResult(true,"CONEXIÓN XUI OK • SOLO LECTURA\nUsuario encontrado: "+target+"\nVencimiento actual: "+expiry+"\nExtensión detectada: +"+months+(if(months==1)" mes" else " meses")+"\nNueva fecha propuesta: "+addMonths(expiry,months)+"\n\nPRUEBA CONTROLADA • No se realizó ningún cambio.")
   else XuiProbeResult(true,"CONEXIÓN XUI OK • SOLO LECTURA\nUsuario encontrado: "+target+"\nDIAGNÓSTICO AJAX/JS: "+safeAjaxDiagnostic(r.text,base)+"\nNo se realizó ningún cambio.")
+ }
+ private fun findVisibleExpDateValue(s:String):String?{
+  val d=s.replace("&quot;","\\\"").replace("&#039;","'").replace("\\\\/","/")
+  // Last-resort read-only parser for XUI v1.7.5 R16 inline script shown by DevTools.
+  val around=Regex("""(?is)exp_date[\\s\\S]{0,500}?(20\\d{2}[-/]\\d{1,2}[-/]\\d{1,2}(?:[ T]\\d{1,2}:\\d{2}(?::\\d{2})?)?)""").find(d)?.groupValues?.getOrNull(1)
+  if(around!=null) return normalize(around)
+  return Regex("""20\\d{2}[-/]\\d{1,2}[-/]\\d{1,2}[ T]\\d{1,2}:\\d{2}(?::\\d{2})?""").findAll(d).map{normalize(it.value)}.firstOrNull()
  }
  private fun probeReadOnlyDataRoutes(base:String,target:String,months:Int):String{
   val q=enc(target)
