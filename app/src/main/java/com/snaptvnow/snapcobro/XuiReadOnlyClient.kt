@@ -78,6 +78,7 @@ class XuiReadOnlyClient {
   Regex("""(?is)href\s*=\s*["']([^"'#]+)["']""").findAll(chunk).forEach{urls+=it.groupValues[1]}
   Regex("""(?is)(?:data-url|data-href|url)\s*=\s*["']([^"']+)["']""").findAll(chunk).forEach{urls+=it.groupValues[1]}
   Regex("""(?is)(?:window\.location|location\.href)\s*=\s*["']([^"']+)["']""").findAll(chunk).forEach{urls+=it.groupValues[1]}
+  Regex("""(?is)(?:line\?id=|data-id\s*=\s*["'])(\d{2,})""").findAll(chunk).forEach{urls+="/line?id="+it.groupValues[1]}
   return urls.map{it.replace("&amp;","&")}.filter{it.contains("line",true)||it.contains("edit",true)}.distinct()
  }
  private fun resolve(base:String,link:String)=URL(URL(base),link).toString()
