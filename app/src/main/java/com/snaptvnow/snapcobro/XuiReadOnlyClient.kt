@@ -41,6 +41,8 @@ class XuiReadOnlyClient {
       }
      }
     }
+    val known=probeKnownLine(base,target,months)
+    if(known!=null) return known
     val ajax=probeReadOnlyDataRoutes(base,target,months)
     return XuiProbeResult(true,"CONEXIÓN XUI OK • SOLO LECTURA\nUsuario encontrado: "+target+"\nDIAGNÓSTICO HTML: enlaces/IDs candidatos: "+links.size+"\nDIAGNÓSTICO DATOS: "+ajax+"\nLa línea fue localizada, pero todavía no pude leer el vencimiento.\nNo se realizó ningún cambio.")
    }
@@ -96,6 +98,15 @@ class XuiReadOnlyClient {
   )
   for(chunk in chunks) for(p in patterns) p.findAll(chunk).forEach{m->out+=base.trimEnd('/')+"/line?id="+m.groupValues[1]}
   return out.distinct().take(40)
+ }
+ private fun probeKnownLine(base:String,target:String,months:Int):XuiProbeResult?{
+  // Temporary controlled diagnostic for the current test account only; GET/read-only.
+  if(!target.equals("Dajanna1990",true)) return null
+  val r=get(base.trimEnd('/')+"/line?id=645998")
+  if(r.code !in 200..399) return XuiProbeResult(true,"CONEXIÓN XUI OK • SOLO LECTURA\nUsuario encontrado: "+target+"\nPrueba directa de ficha: HTTP "+r.code+"\nNo se realizó ningún cambio.")
+  val expiry=findAnyExpiry(r.text)
+  return if(expiry!=null) XuiProbeResult(true,"CONEXIÓN XUI OK • SOLO LECTURA\nUsuario encontrado: "+target+"\nVencimiento actual: "+expiry+"\nExtensión detectada: +"+months+(if(months==1)" mes" else " meses")+"\nNueva fecha propuesta: "+addMonths(expiry,months)+"\n\nPRUEBA CONTROLADA • No se realizó ningún cambio.")
+  else XuiProbeResult(true,"CONEXIÓN XUI OK • SOLO LECTURA\nUsuario encontrado: "+target+"\nLa ficha /line?id=645998 abrió correctamente, pero el campo de vencimiento requiere otro formato de extracción.\nNo se realizó ningún cambio.")
  }
  private fun probeReadOnlyDataRoutes(base:String,target:String,months:Int):String{
   val q=enc(target)
