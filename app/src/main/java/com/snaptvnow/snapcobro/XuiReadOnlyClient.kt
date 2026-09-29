@@ -58,7 +58,7 @@ class XuiReadOnlyClient {
  private fun findAnyExpiry(s:String):String?{
   val decoded=s.replace("&quot;","\"").replace("&#039;","'").replace("&nbsp;"," ")
   // XUI v1.7.5 R16 writes the expiry directly as: $("#exp_date").val('YYYY-MM-DD HH:mm');
-  val xuiExpDate=Regex("""(?is)#exp_date.{0,120}?\\.val\\(\\s*["\'](20\\d{2}[-/]\\d{1,2}[-/]\\d{1,2}(?:[ T]\\d{1,2}:\\d{2}(?::\\d{2})?))["\']\\s*\\)""").find(decoded)?.groupValues?.getOrNull(1)
+  val xuiExpDate=Regex("""(?is)#exp_date.{0,240}?\.val\(\s*["'](20\d{2}[-/]\d{1,2}[-/]\d{1,2}(?:[ T]\d{1,2}:\d{2}(?::\d{2})?))["']\s*\)""").find(decoded)?.groupValues?.getOrNull(1)
   if(xuiExpDate!=null) return normalize(xuiExpDate)
   // XUI may populate Expiration Date from inline JavaScript with .val(...).
   val jsExpiry=Regex("""(?is)(?:expiration(?:_date)?|exp_date|expires?)[^\n\r]{0,240}?\.val\(\s*["\'](20\d{2}[-/]\d{1,2}[-/]\d{1,2}(?:[ T]\d{1,2}:\d{2}(?::\d{2})?))["\']\s*\)""").find(decoded)?.groupValues?.getOrNull(1)
