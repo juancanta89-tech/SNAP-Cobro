@@ -20,7 +20,7 @@ class XuiReadOnlyClient {
     val r=postLoginOnly(url,"username="+enc(user)+"&password="+enc(password))
     if(r.code in 200..399){loginOk=true;break}
    }
-   if(!loginOk) return XuiProbeResult(false,"El panel respondió, pero no pude validar el inicio de sesión.")
+   if(!loginOk) return XuiProbeResult(false,"No pude validar el inicio de sesión en XUI. El acceso raíz respondió HTTP "+root.code+". No se realizó ningún cambio.")
    val q=enc(target)
    val pages=listOf(base.trimEnd('/')+"/lines?search="+q,base.trimEnd('/')+"/lines.php?search="+q,base.trimEnd('/')+"/line?search="+q)
    for(url in pages){
