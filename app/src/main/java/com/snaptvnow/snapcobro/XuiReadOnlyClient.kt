@@ -14,7 +14,6 @@ class XuiReadOnlyClient {
   if(base.isBlank()||user.isBlank()||password.isBlank()) return XuiProbeResult(false,"Configuración XUI incompleta.")
   return try{
    val root=get(base)
-   if(root.code !in 200..399) return XuiProbeResult(false,"Panel no accesible. HTTP "+root.code)
    var loginOk=false
    for(url in listOf(base.trimEnd('/')+"/login",base.trimEnd('/')+"/")){
     val r=postLoginOnly(url,"username="+enc(user)+"&password="+enc(password))
