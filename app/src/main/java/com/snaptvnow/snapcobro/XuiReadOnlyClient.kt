@@ -42,7 +42,7 @@ class XuiReadOnlyClient {
       }
      }
     }
-    val ajax=probeReadOnlyDataRoutes(base,target)
+    val ajax=probeReadOnlyDataRoutes(base,target,months)
     return XuiProbeResult(true,"CONEXIÓN XUI OK • SOLO LECTURA\nUsuario encontrado: "+target+"\nDIAGNÓSTICO HTML: enlaces/IDs candidatos: "+links.size+"\nDIAGNÓSTICO DATOS: "+ajax+"\nLa línea fue localizada, pero todavía no pude leer el vencimiento.\nNo se realizó ningún cambio.")
    }
    XuiProbeResult(false,"Conexión realizada, pero no encontré una coincidencia verificable para: "+target+"\nNo se realizó ningún cambio.")
@@ -98,27 +98,42 @@ class XuiReadOnlyClient {
   for(chunk in chunks) for(p in patterns) p.findAll(chunk).forEach{m->out+=base.trimEnd('/')+"/line?id="+m.groupValues[1]}
   return out.distinct().take(40)
  }
- private fun probeReadOnlyDataRoutes(base:String,target:String):String{
+ private fun probeReadOnlyDataRoutes(base:String,target:String,months:Int):String{
   val q=enc(target)
   val routes=listOf(
-   "/api/lines?search="+q,
-   "/lines?draw=1&start=0&length=10&search[value]="+q,
-   "/lines.php?draw=1&start=0&length=10&search[value]="+q,
-   "/table?type=lines&search="+q
+   "/lines?draw=1&start=0&length=25&search[value]="+q,
+   "/lines.php?draw=1&start=0&length=25&search[value]="+q
   )
   val notes=mutableListOf<String>()
   for(path in routes){
    try{
     val r=get(base.trimEnd('/')+path)
-    val hit=r.text.contains(target,true)
-    notes+=path.substringBefore('?')+":"+r.code+(if(hit)":USER" else "")
-    if(hit){
-     val expiry=findExpiryNearUser(r.text,target)?:findAnyExpiry(r.text)
-     if(expiry!=null) notes[notes.lastIndex]+=":EXP="+expiry
+    if(r.code !in 200..399){notes+=path.substringBefore('?')+":"+r.code;continue}
+    if(!r.text.contains(target,true)){notes+=path.substringBefore('?')+":"+r.code;continue}
+    val ids=extractIdsFromDataResponse(r.text,target)
+    notes+=path.substringBefore('?')+":"+r.code+":USER:IDs="+ids.take(5).joinToString(",")
+    for(id in ids.take(20)){
+     val detail=get(base.trimEnd('/')+"/line?id="+id)
+     if(detail.code in 200..399){
+      val expiry=findAnyExpiry(detail.text)
+      if(expiry!=null) return "FOUND id="+id+" | Vencimiento actual: "+expiry+" | Nueva fecha propuesta: "+addMonths(expiry,months)
+     }
     }
    }catch(_:Exception){notes+=path.substringBefore('?')+":ERR"}
   }
   return notes.joinToString(" | ")
+ }
+ private fun extractIdsFromDataResponse(body:String,user:String):List<String>{
+  val decoded=body.replace("\\/","/").replace("&quot;","\"").replace("&#039;","'").replace("&amp;","&")
+  val i=decoded.indexOf(user,ignoreCase=true);if(i<0)return emptyList()
+  val chunk=decoded.substring((i-5000).coerceAtLeast(0),(i+5000).coerceAtMost(decoded.length))
+  val out=mutableListOf<String>()
+  listOf(
+   Regex("""(?is)line(?:\.php)?\?id[=\\u003d]+(\d{2,})"""),
+   Regex("""(?is)["'](?:id|line_id|stream_id)["']\s*:\s*["']?(\d{2,})"""),
+   Regex("""(?is)(?:data-id|data-line-id)\s*=\s*["'](\d{2,})["']""")
+  ).forEach{p->p.findAll(chunk).forEach{m->out+=m.groupValues[1]}}
+  return out.distinct()
  }
  private fun resolve(base:String,link:String)=URL(URL(base),link).toString()
  private data class R(val code:Int,val text:String)
