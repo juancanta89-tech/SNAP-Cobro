@@ -12,6 +12,8 @@ class MainActivity:AppCompatActivity(){
  private lateinit var historyBox:TextView
  private lateinit var renewalPreview:TextView
  private lateinit var testInput:EditText
+ private lateinit var xuiConfig:XuiConfigStore
+ private lateinit var xuiUrl:EditText; private lateinit var xuiUser:EditText; private lateinit var xuiPassword:EditText; private lateinit var xuiStatus:TextView
  private var current:StoredPayment?=null
  private val receiver=object:BroadcastReceiver(){override fun onReceive(c:Context?,i:Intent?){refresh()}}
 
@@ -19,6 +21,8 @@ class MainActivity:AppCompatActivity(){
   super.onCreate(b);setContentView(R.layout.activity_main);store=PaymentStore(this)
   paymentBox=findViewById(R.id.paymentBox);historyBox=findViewById(R.id.historyBox)
   renewalPreview=findViewById(R.id.renewalPreview);testInput=findViewById(R.id.testInput)
+  xuiConfig=XuiConfigStore(this);xuiUrl=findViewById(R.id.xuiUrl);xuiUser=findViewById(R.id.xuiUser);xuiPassword=findViewById(R.id.xuiPassword);xuiStatus=findViewById(R.id.xuiStatus)
+  xuiUrl.setText(xuiConfig.url());xuiUser.setText(xuiConfig.user())
   ActivityCompat.requestPermissions(this,arrayOf(Manifest.permission.RECEIVE_SMS,Manifest.permission.READ_SMS,Manifest.permission.READ_CONTACTS),100)
 
   findViewById<Button>(R.id.testButton).setOnClickListener{
@@ -26,6 +30,8 @@ class MainActivity:AppCompatActivity(){
    if(p==null) Toast.makeText(this,"SMS no reconocido o importe sin plan",Toast.LENGTH_LONG).show()
    else {val ok=store.saveIfNew(raw,p);Toast.makeText(this,if(ok)"Pago de prueba detectado" else "Pago duplicado ignorado",Toast.LENGTH_LONG).show();refresh()}
   }
+  findViewById<Button>(R.id.saveXuiConfig).setOnClickListener{xuiConfig.save(xuiUrl.text.toString(),xuiUser.text.toString(),xuiPassword.text.toString());xuiPassword.setText("");xuiStatus.text="Configuración guardada localmente. Lista para prueba de solo lectura.";Toast.makeText(this,"Configuración XUI guardada en este teléfono",Toast.LENGTH_LONG).show()}
+  findViewById<Button>(R.id.searchXuiButton).setOnClickListener{val p=current?.payment;if(p==null){xuiStatus.text="No hay un pago pendiente para buscar."}else if(!xuiConfig.configured()){xuiStatus.text="Primero guarda URL, usuario y contraseña del panel."}else{xuiStatus.text="Preparado para buscar: "+p.xuiUser+"\nMODO SOLO LECTURA • todavía no se enviará ningún cambio a XUI.";Toast.makeText(this,"XUI sigue bloqueado para escritura",Toast.LENGTH_LONG).show()}}
   refresh()
  }
 
