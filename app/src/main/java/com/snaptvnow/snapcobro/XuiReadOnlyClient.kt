@@ -42,7 +42,8 @@ class XuiReadOnlyClient {
       }
      }
     }
-    return XuiProbeResult(true,"CONEXIÓN XUI OK • SOLO LECTURA\nUsuario encontrado: "+target+"\nDIAGNÓSTICO: enlaces/IDs candidatos detectados: "+links.size+"\nPrimeros candidatos: "+links.take(5).joinToString(" | ")+"\nLa línea fue localizada, pero todavía no pude leer el vencimiento.\nNo se realizó ningún cambio.")
+    val ajax=probeReadOnlyDataRoutes(base,target)
+    return XuiProbeResult(true,"CONEXIÓN XUI OK • SOLO LECTURA\nUsuario encontrado: "+target+"\nDIAGNÓSTICO HTML: enlaces/IDs candidatos: "+links.size+"\nDIAGNÓSTICO DATOS: "+ajax+"\nLa línea fue localizada, pero todavía no pude leer el vencimiento.\nNo se realizó ningún cambio.")
    }
    XuiProbeResult(false,"Conexión realizada, pero no encontré una coincidencia verificable para: "+target+"\nNo se realizó ningún cambio.")
   }catch(e:Exception){XuiProbeResult(false,"Error de conexión: "+(e.message?:"desconocido")+"\nNo se realizó ningún cambio.")}
@@ -96,6 +97,28 @@ class XuiReadOnlyClient {
   )
   for(chunk in chunks) for(p in patterns) p.findAll(chunk).forEach{m->out+=base.trimEnd('/')+"/line?id="+m.groupValues[1]}
   return out.distinct().take(40)
+ }
+ private fun probeReadOnlyDataRoutes(base:String,target:String):String{
+  val q=enc(target)
+  val routes=listOf(
+   "/api/lines?search="+q,
+   "/lines?draw=1&start=0&length=10&search[value]="+q,
+   "/lines.php?draw=1&start=0&length=10&search[value]="+q,
+   "/table?type=lines&search="+q
+  )
+  val notes=mutableListOf<String>()
+  for(path in routes){
+   try{
+    val r=get(base.trimEnd('/')+path)
+    val hit=r.text.contains(target,true)
+    notes+=path.substringBefore('?')+":"+r.code+(if(hit)":USER" else "")
+    if(hit){
+     val expiry=findExpiryNearUser(r.text,target)?:findAnyExpiry(r.text)
+     if(expiry!=null) notes[notes.lastIndex]+=":EXP="+expiry
+    }
+   }catch(_:Exception){notes+=path.substringBefore('?')+":ERR"}
+  }
+  return notes.joinToString(" | ")
  }
  private fun resolve(base:String,link:String)=URL(URL(base),link).toString()
  private data class R(val code:Int,val text:String)
