@@ -169,7 +169,7 @@ class XuiReadOnlyClient {
   if(r.code !in 200..399) return XuiProbeResult(true,"CONEXIÓN XUI OK • SOLO LECTURA\nUsuario encontrado: "+target+"\nPrueba directa de ficha: HTTP "+r.code+"\nNo se realizó ningún cambio.")
   val expiry=findAnyExpiry(r.text) ?: findExpiryEncoded(r.text) ?: findVisibleExpDateValue(r.text)
   return if(expiry!=null) XuiProbeResult(true,"CONEXIÓN XUI OK • SOLO LECTURA\nUsuario encontrado: "+target+"\nVencimiento actual: "+expiry+"\nExtensión detectada: +"+months+(if(months==1)" mes" else " meses")+"\nNueva fecha propuesta: "+addMonths(expiry,months)+"\n\nPRUEBA CONTROLADA • No se realizó ningún cambio.")
-  else XuiProbeResult(true,"CONEXIÓN XUI OK • SOLO LECTURA\nUsuario encontrado: "+target+"\nDIAGNÓSTICO AJAX/JS: "+safeAjaxDiagnostic(r.text,base)+"\nNo se realizó ningún cambio.")
+  else XuiProbeResult(true,"CONEXIÓN XUI OK • SOLO LECTURA\nUsuario encontrado: "+target+"\nFICHA DIRECTA HTTP: "+r.code+"\nURL FINAL: "+safeUrl(r.finalUrl)+"\nHTML: "+r.text.length+" caracteres • exp_date="+r.text.contains("exp_date",true)+" • fecha="+Regex("""20\\d{2}[-/]\\d{1,2}[-/]\\d{1,2}""").containsMatchIn(r.text)+"\nNo se realizó ningún cambio.")
  }
  private fun findVisibleExpDateValue(s:String):String?{
   val d=s.replace("&quot;","\\\"").replace("&#039;","'").replace("\\\\/","/")
@@ -215,15 +215,15 @@ class XuiReadOnlyClient {
   ).forEach{p->p.findAll(chunk).forEach{m->out+=m.groupValues[1]}}
   return out.distinct()
  }
- private fun panelUrl(base:String,relative:String):String{
+ private fun safeUrl(v:String):String{ return try{ val u=URL(v); u.protocol+"://"+u.host+(if(u.port>0)":"+u.port else "")+u.path+(if(u.query.isNullOrBlank())"" else "?"+u.query) }catch(_:Exception){v.take(180)} }\n private fun panelUrl(base:String,relative:String):String{
   val b=base.trimEnd('/')+"/"
   return URL(URL(b),relative.trimStart('/')).toString()
  }
  private fun resolve(base:String,link:String)=URL(URL(base),link).toString()
- private data class R(val code:Int,val text:String)
- private fun get(url:String):R{val c=URL(url).openConnection() as HttpURLConnection;c.requestMethod="GET";c.instanceFollowRedirects=true;c.connectTimeout=12000;c.readTimeout=12000;addCookies(c,url);val code=c.responseCode;saveCookies(c,url);return R(code,read(c,code))}
+ private data class R(val code:Int,val text:String,val finalUrl:String)
+ private fun get(url:String):R{val c=URL(url).openConnection() as HttpURLConnection;c.requestMethod="GET";c.instanceFollowRedirects=true;c.connectTimeout=12000;c.readTimeout=12000;addCookies(c,url);val code=c.responseCode;saveCookies(c,url);return R(code,read(c,code),c.url.toString())}
  // The only POST is authentication. No update/save/delete endpoint is implemented.
- private fun postLoginOnly(url:String,body:String):R{val c=URL(url).openConnection() as HttpURLConnection;c.requestMethod="POST";c.instanceFollowRedirects=true;c.connectTimeout=12000;c.readTimeout=12000;c.doOutput=true;c.setRequestProperty("Content-Type","application/x-www-form-urlencoded");addCookies(c,url);c.outputStream.use{it.write(body.toByteArray())};val code=c.responseCode;saveCookies(c,url);return R(code,read(c,code))}
+ private fun postLoginOnly(url:String,body:String):R{val c=URL(url).openConnection() as HttpURLConnection;c.requestMethod="POST";c.instanceFollowRedirects=true;c.connectTimeout=12000;c.readTimeout=12000;c.doOutput=true;c.setRequestProperty("Content-Type","application/x-www-form-urlencoded");addCookies(c,url);c.outputStream.use{it.write(body.toByteArray())};val code=c.responseCode;saveCookies(c,url);return R(code,read(c,code),c.url.toString())}
  private fun read(c:HttpURLConnection,code:Int)=try{(if(code>=400)c.errorStream else c.inputStream)?.bufferedReader()?.use{it.readText()}?:""}catch(_:Exception){""}
  private fun addCookies(c:HttpURLConnection,url:String){cookies.get(URI(url),emptyMap()).forEach{(k,v)->if(k.equals("Cookie",true))c.setRequestProperty("Cookie",v.joinToString("; "))}}
  private fun saveCookies(c:HttpURLConnection,url:String){cookies.put(URI(url),c.headerFields)}
