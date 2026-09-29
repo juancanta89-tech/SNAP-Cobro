@@ -42,7 +42,7 @@ class XuiReadOnlyClient {
       }
      }
     }
-    return XuiProbeResult(true,"CONEXIÓN XUI OK • SOLO LECTURA\nUsuario encontrado: "+target+"\nLa línea fue localizada, pero esta vista de XUI no expone el vencimiento en HTML.\nNo se realizó ningún cambio.")
+    return XuiProbeResult(true,"CONEXIÓN XUI OK • SOLO LECTURA\nUsuario encontrado: "+target+"\nDIAGNÓSTICO: enlaces/IDs candidatos detectados: "+links.size+"\nPrimeros candidatos: "+links.take(5).joinToString(" | ")+"\nLa línea fue localizada, pero todavía no pude leer el vencimiento.\nNo se realizó ningún cambio.")
    }
    XuiProbeResult(false,"Conexión realizada, pero no encontré una coincidencia verificable para: "+target+"\nNo se realizó ningún cambio.")
   }catch(e:Exception){XuiProbeResult(false,"Error de conexión: "+(e.message?:"desconocido")+"\nNo se realizó ningún cambio.")}
