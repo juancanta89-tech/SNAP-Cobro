@@ -32,8 +32,8 @@ class XuiReadOnlyClient {
      return XuiProbeResult(true,"CONEXIÓN XUI OK • SOLO LECTURA\nUsuario encontrado: "+target+"\nVencimiento actual: "+expiry+"\nExtensión detectada: +"+months+(if(months==1)" mes" else " meses")+"\nNueva fecha propuesta: "+proposed+"\n\nVERIFICACIÓN PENDIENTE • No se realizó ningún cambio.")
     }
     // Some XUI list views expose the line but not its expiry. Follow read-only links around the exact row.
-    val links=extractLinksNearUser(r.text,target)
-    for(link in links.take(12)){
+    val links=(extractLinksNearUser(r.text,target)+extractCandidateLineUrls(r.text,target,base)).distinct()
+    for(link in links.take(40)){
      val detail=get(resolve(url,link))
      if(detail.code in 200..399){
       val d=findExpiryNearUser(detail.text,target)?:findAnyExpiry(detail.text)
@@ -80,6 +80,22 @@ class XuiReadOnlyClient {
   Regex("""(?is)(?:window\.location|location\.href)\s*=\s*["']([^"']+)["']""").findAll(chunk).forEach{urls+=it.groupValues[1]}
   Regex("""(?is)(?:line\?id=|data-id\s*=\s*["'])(\d{2,})""").findAll(chunk).forEach{urls+="/line?id="+it.groupValues[1]}
   return urls.map{it.replace("&amp;","&")}.filter{it.contains("line",true)||it.contains("edit",true)}.distinct()
+ }
+ private fun extractCandidateLineUrls(html:String,user:String,base:String):List<String>{
+  val decoded=html.replace("&quot;","\"").replace("&#039;","'").replace("&amp;","&")
+  val i=decoded.indexOf(user,ignoreCase=true); if(i<0)return emptyList()
+  val chunks=listOf(
+   decoded.substring((i-30000).coerceAtLeast(0),(i+30000).coerceAtMost(decoded.length)),
+   decoded
+  )
+  val out=mutableListOf<String>()
+  val patterns=listOf(
+   Regex("""(?is)(?:line(?:\.php)?\?id=)(\d{2,})"""),
+   Regex("""(?is)(?:data-id|data-line-id|line_id|stream_id|id)\s*[=:]\s*["']?(\d{2,})"""),
+   Regex("""(?is)["'](?:id|line_id|stream_id)["']\s*:\s*["']?(\d{2,})""")
+  )
+  for(chunk in chunks) for(p in patterns) p.findAll(chunk).forEach{m->out+=base.trimEnd('/')+"/line?id="+m.groupValues[1]}
+  return out.distinct().take(40)
  }
  private fun resolve(base:String,link:String)=URL(URL(base),link).toString()
  private data class R(val code:Int,val text:String)
