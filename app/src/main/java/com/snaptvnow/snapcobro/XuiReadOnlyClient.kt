@@ -15,11 +15,13 @@ class XuiReadOnlyClient {
   return try{
    val root=get(base)
    var loginOk=false
+   var loginDiag=""
    for(url in listOf(base.trimEnd('/')+"/login",base.trimEnd('/')+"/")){
     val r=postLoginOnly(url,"username="+enc(user)+"&password="+enc(password))
-    if(r.code in 200..399){loginOk=true;break}
+    loginDiag += "POST "+safeUrl(url)+" -> "+r.code+" final="+safeUrl(r.finalUrl)+" cookies="+cookieNames(url).joinToString(",")+"; "
+     if(r.code in 200..399 && !r.finalUrl.contains("/login",true)){loginOk=true;break}
    }
-   if(!loginOk) return XuiProbeResult(false,"No pude validar el inicio de sesión en XUI. El acceso raíz respondió HTTP "+root.code+". No se realizó ningún cambio.")
+   if(!loginOk) return XuiProbeResult(false,"No pude establecer una sesión autenticada en XUI. "+loginDiag+"No se realizó ningún cambio.")
    val q=enc(target)
    val pages=listOf(base.trimEnd('/')+"/lines?search="+q,base.trimEnd('/')+"/lines.php?search="+q,base.trimEnd('/')+"/line?search="+q)
    for(url in pages){
@@ -228,5 +230,6 @@ class XuiReadOnlyClient {
  private fun read(c:HttpURLConnection,code:Int)=try{(if(code>=400)c.errorStream else c.inputStream)?.bufferedReader()?.use{it.readText()}?:""}catch(_:Exception){""}
  private fun addCookies(c:HttpURLConnection,url:String){cookies.get(URI(url),emptyMap()).forEach{(k,v)->if(k.equals("Cookie",true))c.setRequestProperty("Cookie",v.joinToString("; "))}}
  private fun saveCookies(c:HttpURLConnection,url:String){cookies.put(URI(url),c.headerFields)}
+ private fun cookieNames(url:String):List<String>{return try{cookies.cookieStore.cookies.map{it.name}.distinct()}catch(_:Exception){emptyList()}}
  private fun enc(v:String)=URLEncoder.encode(v,"UTF-8")
 }
